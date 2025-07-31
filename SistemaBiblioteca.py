@@ -1,6 +1,8 @@
+############################################# ESTRUCTURAS DE DATOS #############################################
+
 libros = {
     "1": {"nombre": "1984", "autor": "Orwell", "género": "Distopía", "cantidad": 5},
-    "2": {"nombre": "El Principito", "autor": "Saint-Exupéry", "género": "Fábula", "cantidad": 3},
+    "2": {"nombre": "El Principito", "autor": "Saint-Exupéry", "género": "Fábula", "cantidad": 1},
     "3": {"nombre": "Cien años de soledad", "autor": "Gabriel García Márquez", "género": "Realismo mágico", "cantidad": 4},
     "4": {"nombre": "Fahrenheit 451", "autor": "Ray Bradbury", "género": "Ciencia ficción", "cantidad": 1}
 }
@@ -15,6 +17,10 @@ usuarios = {
 prestamos = [] #id, fechaPrestamo, fechaDevolucion, tipo, usuario, libro, devuelto
 
 mantenimiento = [] #libro, fechaIngreso, nombreRestaurador, estado, situacion
+
+lista_espera = [] #usuario, libro
+
+################################################### LIBROS ###################################################
 
 def alta_libro():
     if libros:
@@ -49,6 +55,8 @@ def baja_libro():
     c = input("Código: ")
     libros.pop(c)
 
+################################################### USUARIOS ###################################################
+
 def alta_usuario():
     ci = input("Cédula de identidad: ")
     n = input("Nombre: ")
@@ -73,6 +81,8 @@ def modifica_usuario(op1, op2):
 def baja_usuario():
     ci = input("Cédula de identidad: ")
     usuarios.pop(ci)
+
+################################################### PRÉSTAMOS ###################################################
 
 def leer_fecha():
     d = int(input('Día: '))
@@ -142,12 +152,41 @@ def realizar_prestamo():
                 d = False
                 return [id, fp, fd, t, u, l, d]
             else:
-                print("No hay ejemplares disponibles para este libro")
+                lista_espera.append([u, l])
+                print("No hay ejemplares disponibles para este libro. Se envió solicitud a lista de espera")
             break
     else:
         print("Error libro")
         return None
     
+def notificar_siguiente(l):
+    for lista in lista_espera:
+        if l == lista[1]:
+            print("Notificando al siguiente en lista de espera para el libro", l, ":")
+            if prestamos:
+                ultimo_codigo = max(int(p[0]) for p in prestamos)
+                id = str(ultimo_codigo + 1)
+            else:
+                id = "1"
+            fp = leer_fecha()
+            if fp == None:
+                return None
+            t = input("Tipo de Préstamo (Normal o Extenso): ")
+            if t == "Normal":
+                fd = sumar_dias(fp, 3)
+            elif t == "Extenso":
+                fd = sumar_dias(fp, 7)
+            u = lista[0]
+            l = lista[1]
+            for libro in libros.values():
+                if l == libro["nombre"]:
+                    libro["cantidad"] = libro["cantidad"] - 1
+                    break
+            d = False
+            prestamos.append([id, fp, fd, t, u, l, d])
+            lista_espera.remove(lista)
+            break
+      
 def registrar_devolucion():
     id = input("Digite el ID del préstamo: ")
     for prestamo in prestamos:
@@ -156,9 +195,13 @@ def registrar_devolucion():
             for libro in libros.values():
                 if prestamo[5] == libro["nombre"]:
                     libro["cantidad"] = libro["cantidad"] + 1
+                    if lista_espera:
+                        notificar_siguiente(libro["nombre"])
             break
     else:
         print("Préstamo no encontrado")
+
+################################################### MANTENIMIENTO ###################################################
 
 def agregar_reparacion():
     l = input("Libro: ")
@@ -172,31 +215,27 @@ def agregar_reparacion():
     else:
         print("Error libro")
         return None
-    
     fi = leer_fecha()
     if fi == None:
         return None
-    
     restaurador = input("Nombre del restaurador: ")
-
     estado = input("Estado: ")
-
     situacion = True
-
     return [l, fi, restaurador, estado, situacion]
 
 def reparar_libro():
     if mantenimiento:
         for mant in mantenimiento:
-            lib = mant[0]
             for libro in libros.values():
-                if lib == libro["nombre"]:
+                if mant[0] == libro["nombre"]:
                     libro["cantidad"] = libro["cantidad"] + 1
+                    if lista_espera:
+                        notificar_siguiente(libro["nombre"])
         mantenimiento.pop()
     else:
         print("No hay libros para reparar")
         
-    
+################################################### MENÚ PRINCIPAL ################################################### 
 
 def menu():
     op = int(input("Menú principal: \n\n1. Libros \n2. Usuarios \n3. Préstamos \n4. Mantenimiento \n0. Salir \nOpción: "))
@@ -233,14 +272,17 @@ def menu():
             menu()
         return opU
     if op == 3:
-        opP = int(input("\n\n1. Realizar nuevo préstamo \n2. Registrar devolución de libro \n3. Agregar solicitud a la lista de espera \n4. Notificar al siguiente en lista \n5. Menú \nOpción: "))
+        opP = int(input("\n\n1. Realizar nuevo préstamo \n2. Registrar devolución de libro \n3. Mostrar lista de espera \n4. Mostrar préstamos \n5. Menú \nOpción: "))
         if opP == 1:
             aux = realizar_prestamo()
             if aux != None:
                 prestamos.append(aux)
-            print(len(prestamos), prestamos)
         if opP == 2:
             registrar_devolucion()
+        if opP == 3:
+            print(len(lista_espera), lista_espera)
+        if opP == 4:
+            print(len(prestamos), prestamos)
         if opP == 5:
             menu()
         return opP
@@ -260,6 +302,8 @@ def menu():
             menu()
         return opM
     return op
+
+####################################################### MAIN #######################################################
 
 def inicio():
     while menu() != 0 :
